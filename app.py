@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import numpy as np
 import pandas as pd
 
-# 1. Define the 'Brain' structure (Must match your training)
+# 1. Model Architecture
 class GeneDetector(nn.Module):
     def __init__(self):
         super(GeneDetector, self).__init__()
@@ -24,30 +24,50 @@ def one_hot_encode(sequence):
     mapping = {'A': [1,0,0,0], 'C': [0,1,0,0], 'G': [0,0,1,0], 'T': [0,0,0,1]}
     return np.array([mapping.get(base.upper(), [0,0,0,0]) for base in sequence])
 
-# 2. Setup the Web Interface
-st.title("🧬 Gene Identification AI Portal")
-st.write("MSc Biotechnology Dissertation - NIT Agartala")
+# 2. Page Setup
+st.set_page_config(page_title="AI Gene Identifier", page_icon="🧬")
+st.title("🧬 AI Gene Identifier & Extractor")
+st.write("Upload or paste DNA to identify specific gene coordinates.")
 
-user_dna = st.text_area("Paste DNA Sequence:", "ATGCGTACGTAGCTAGCTAGCTAGCTAGC")
+user_dna = st.text_area("Paste DNA Sequence:", height=200)
+WINDOW_SIZE = 30 # Must match your training size
+STRIDE = 5      # Speed of scan
 
-if st.button("Run AI Analysis"):
-    # Load your trained model
+if st.button("Identify Genes"):
+    # Load Model
     model = GeneDetector()
     model.load_state_dict(torch.load("gene_detector_model.pth", map_location=torch.device('cpu')))
     model.eval()
 
-    # Analyze
-    input_tensor = torch.tensor(one_hot_encode(user_dna)).float().T.unsqueeze(0)
-    with torch.no_grad():
-        output = model(input_tensor)
-        probs = F.softmax(output, dim=1)
-        confidence = probs[0][1].item() * 100
-        prediction = torch.argmax(output, dim=1).item()
+    findings = []
+    
+    # 3. Sliding Window Identification Logic
+    with st.spinner("Scanning sequence..."):
+        for i in range(0, len(user_dna) - WINDOW_SIZE, STRIDE):
+            window = user_dna[i : i + WINDOW_SIZE]
+            input_tensor = torch.tensor(one_hot_encode(window)).float().T.unsqueeze(0)
+            
+            with torch.no_grad():
+                output = model(input_tensor)
+                probs = F.softmax(output, dim=1)
+                confidence = probs[0][1].item() * 100
+                
+            if confidence > 80: # Identification Threshold
+                findings.append({
+                    "Start": i,
+                    "End": i + WINDOW_SIZE,
+                    "Sequence": window,
+                    "Confidence": f"{confidence:.2f}%"
+                })
 
-    # Show Results
-    status = "GENE DETECTED" if prediction == 1 else "NO GENE FOUND"
-    st.success(f"Result: {status} | Confidence: {confidence:.2f}%")
-
-    # Download Button
-    df = pd.DataFrame([{"Sequence": user_dna, "Result": status, "Confidence": f"{confidence:.2f}%"}])
-    st.download_button("📥 Download Results (CSV)", df.to_csv(index=False), "result.csv", "text/csv")
+    # 4. Show Results
+    if findings:
+        st.success(f"Identified {len(findings)} potential gene regions!")
+        df = pd.DataFrame(findings)
+        st.dataframe(df) # Shows the table of identified genes
+        
+        # Download results
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Download Identified Genes (CSV)", csv, "identified_genes.csv", "text/csv")
+    else:
+        st.warning("No genes identified with high confidence. Try a different sequence.")
