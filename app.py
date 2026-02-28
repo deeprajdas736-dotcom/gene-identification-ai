@@ -1,24 +1,25 @@
-from Bio.Blast import NCBIWWW, NCBIXML
+# ... [Your Model and Encoding functions stay the same] ...
 
-def identify_gene(sequence):
-    """Sends sequence to NCBI to find its name and function."""
-    st.info("Searching NCBI Database for identification... (This may take a minute)")
+if st.button("Identify Genes"):
+    # 1. AI Analysis
+    input_tensor = torch.tensor(one_hot_encode(user_dna)).float().T.unsqueeze(0)
+    with torch.no_grad():
+        output = model(input_tensor)
+        probs = F.softmax(output, dim=1)
+        
+        # Define these variables INSIDE the button block
+        confidence = probs[0][1].item() * 100
+        prediction = torch.argmax(output, dim=1).item()
+
+    # 2. Results Display
+    st.write(f"AI Confidence: {confidence:.2f}%")
     
-    # Run BLAST online against the 'nt' (nucleotide) database
-    result_handle = NCBIWWW.qblast("blastn", "nt", sequence)
-    blast_record = NCBIXML.read(result_handle)
-    
-    if blast_record.alignments:
-        # Get the top hit
-        top_hit = blast_record.alignments[0]
-        gene_name = top_hit.title
-        # Attempt to get functional info from the description
-        return gene_name
+    # 3. Biological Identification (BLAST)
+    # This must be indented so it only runs AFTER prediction is defined
+    if prediction == 1 and confidence > 90:
+        st.success("High-confidence gene detected!")
+        gene_info = identify_gene(user_dna) # Using the function provided earlier
+        st.subheader("🧬 Biological Identity")
+        st.write(gene_info)
     else:
-        return "No known match found in global databases."
-
-# --- Inside your Streamlit 'Analyze' button logic ---
-if prediction == 1 and confidence > 90:
-    name_and_func = identify_gene(user_dna)
-    st.subheader("🧬 Biological Identity")
-    st.write(name_and_func)
+        st.warning("No significant gene detected or confidence too low for identification.")
