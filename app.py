@@ -8,7 +8,7 @@ import time
 from Bio.Blast import NCBIWWW, NCBIXML
 
 # --- 1. RESEARCH STATION CONFIGURATION ---
-st.set_page_config(page_title="Deepraj Das | GeneLab AI Pro", layout="wide")
+st.set_page_config(page_title="GeneLab AI | Deepraj Das", layout="wide")
 
 # High-Fidelity UI Styling
 st.markdown("""
@@ -16,12 +16,12 @@ st.markdown("""
     .stApp { background-color: #0d1117; color: #c9d1d9; font-family: 'Inter', sans-serif; }
     .main-header { background: linear-gradient(90deg, #1f6feb, #111); padding: 25px; border-radius: 12px; border: 1px solid #30363d; margin-bottom: 20px; }
     .stat-card { background: #161b22; padding: 15px; border-radius: 10px; border: 1px solid #30363d; text-align: center; }
-    .stButton>button { width: 100%; background-color: #238636; color: white; border-radius: 8px; font-weight: 700; border: none; padding: 10px; }
+    .stButton>button { width: 100%; background-color: #238636; color: white; border-radius: 8px; font-weight: 700; border: none; padding: 12px; }
     .report-container { background: #161b22; padding: 25px; border-radius: 12px; border: 1px solid #1f6feb; margin-top: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. NEURAL CORE ---
+# --- 2. NEURAL CORE (1D CNN) ---
 class GeneDetector(nn.Module):
     def __init__(self):
         super(GeneDetector, self).__init__()
@@ -47,31 +47,32 @@ def fetch_ncbi_data(sequence):
         if blast_record.alignments:
             top_hit = blast_record.alignments[0]
             return {"name": top_hit.title, "length": top_hit.length, "valid": True}
-        return {"name": "No Database Match Found (Potential Novel Gene)", "length": 0, "valid": False}
-    except:
-        return {"name": "NCBI Server Busy - Analysis Incomplete", "length": 0, "valid": False}
+        return {"name": "Potential Novel Sequence (No Database Match)", "length": 0, "valid": False}
+    except Exception as e:
+        return {"name": f"Validation Error: {str(e)}", "length": 0, "valid": False}
 
-# --- 3. DASHBOARD INTERFACE ---
+# --- 3. INTERFACE ---
 with st.sidebar:
     st.markdown("### 🧬 RESEARCHER PROFILE")
     st.write("**Deepraj Das**")
     st.write("MSc Biotechnology")
-    st.write("NIT Agartala")
+    st.write("Amity University Kolkata")
     st.markdown("---")
-    st.write("Target: IDP/Genomic Identification")
+    st.write("**Dissertation Lab:**")
+    st.write("NIT Agartala")
 
 st.markdown("""
     <div class="main-header">
-        <h1 style='margin:0;'>GENELAB PRO: MISSION CONTROL</h1>
-        <p style='margin:0; opacity:0.8;'>Automated Genomic Identification Platform</p>
+        <h1 style='margin:0;'>GENELAB AI: MISSION CONTROL</h1>
+        <p style='margin:0; opacity:0.8;'>Principal Investigator: Deepraj Das</p>
     </div>
 """, unsafe_allow_html=True)
 
 # Metric Panel
 col1, col2, col3 = st.columns(3)
-col1.markdown("<div class='stat-card'><p style='color:#8b949e;'>CORE MODEL</p><h3 style='color:#1f6feb;'>1D-CNN</h3></div>", unsafe_allow_html=True)
-col2.markdown("<div class='stat-card'><p style='color:#8b949e;'>DB LINK</p><h3 style='color:#3fb950;'>NCBI LIVE</h3></div>", unsafe_allow_html=True)
-col3.markdown("<div class='stat-card'><p style='color:#8b949e;'>SYSTEM STATUS</p><h3 style='color:#00d1ff;'>ACTIVE</h3></div>", unsafe_allow_html=True)
+col1.markdown("<div class='stat-card'><p style='color:#8b949e;'>CORE ENGINE</p><h3 style='color:#1f6feb;'>1D-CNN</h3></div>", unsafe_allow_html=True)
+col2.markdown("<div class='stat-card'><p style='color:#8b949e;'>CLOUD LINK</p><h3 style='color:#3fb950;'>NCBI LIVE</h3></div>", unsafe_allow_html=True)
+col3.markdown("<div class='stat-card'><p style='color:#8b949e;'>STATUS</p><h3 style='color:#00d1ff;'>ACTIVE</h3></div>", unsafe_allow_html=True)
 
 st.write("---")
 dna_input = st.text_area("📡 SEQUENCE INPUT TERMINAL", placeholder="Paste Nucleotide Sequence...", height=250)
@@ -81,7 +82,7 @@ if run_analysis:
     if not dna_input:
         st.error("Input Stream Empty.")
     else:
-        with st.status("Performing Structural Scan...", expanded=True) as status:
+        with st.status("Analyzing Genomic Structure...", expanded=True) as status:
             try:
                 # 1. Neural Prediction
                 model = GeneDetector()
@@ -94,18 +95,18 @@ if run_analysis:
                     confidence = F.softmax(output, dim=1)[0][1].item() * 100
                     prediction = torch.argmax(output, dim=1).item()
                 
-                status.update(label="Structural Scan Complete. Validating via NCBI...", state="running")
+                status.update(label="Structural Scan Complete. Accessing Global Databases...", state="running")
                 
                 # 2. Biological Validation
                 bio_data = fetch_ncbi_data(dna_input)
                 status.update(label="Analysis Finalized.", state="complete")
                 
                 # 3. Informative Tabs
-                res_tab, blast_tab, export_tab = st.tabs(["📊 Neural Report", "🧬 Verified Identity", "📥 Data Export"])
+                res_tab, blast_tab, export_tab = st.tabs(["📊 Neural Prediction", "🧬 Verified Identity", "📥 Data Export"])
                 
                 with res_tab:
                     st.markdown("<div class='report-container'>", unsafe_allow_html=True)
-                    res_txt = "GENE DETECTED" if prediction == 1 else "NON-CODING"
+                    res_txt = "GENE DETECTED" if prediction == 1 else "NON-CODING REGION"
                     res_clr = "#3fb950" if prediction == 1 else "#f85149"
                     st.markdown(f"<h2 style='color:{res_clr};'>{res_txt}</h2>", unsafe_allow_html=True)
                     st.write(f"**AI Confidence Level:** {confidence:.2f}%")
@@ -114,21 +115,28 @@ if run_analysis:
                 with blast_tab:
                     st.markdown("<div class='report-container'>", unsafe_allow_html=True)
                     st.subheader("Biological Annotation")
-                    st.info(f"**Identification:** {bio_data['name']}")
-                    st.write(f"**Confirmed Length:** {bio_data['length']} bp")
+                    st.info(f"**NCBI Identity:** {bio_data['name']}")
+                    st.write(f"**Length:** {bio_data['length']} bp")
                     st.markdown("</div>", unsafe_allow_html=True)
                 
                 with export_tab:
                     st.markdown("<div class='report-container'>", unsafe_allow_html=True)
-                    st.subheader("Export Results")
-                    df = pd.DataFrame([{"Investigator": "Deepraj Das", "Result": res_txt, "Confidence": f"{confidence:.2f}%", "Identity": bio_data['name']}])
+                    st.subheader("Data Export Terminal")
+                    df = pd.DataFrame([{
+                        "Investigator": "Deepraj Das", 
+                        "University": "Amity Kolkata",
+                        "Lab": "NIT Agartala",
+                        "Result": res_txt, 
+                        "Confidence": f"{confidence:.2f}%", 
+                        "Identity": bio_data['name']
+                    }])
                     st.download_button(
                         label="📥 DOWNLOAD VERIFIED REPORT (.CSV)",
                         data=df.to_csv(index=False),
-                        file_name=f"GeneLab_Report_{int(time.time())}.csv",
+                        file_name=f"GeneLab_DeeprajDas_{int(time.time())}.csv",
                         mime="text/csv"
                     )
                     st.markdown("</div>", unsafe_allow_html=True)
                     
             except Exception as e:
-                st.error(f"Critical operational failure: {str(e)}")
+                st.error(f"Operational failure: {str(e)}")
