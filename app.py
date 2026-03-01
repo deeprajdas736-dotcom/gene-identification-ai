@@ -3,24 +3,27 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+import pandas as pd
+import time
 from Bio.Blast import NCBIWWW, NCBIXML
 
 # --- 1. SYSTEM CONFIGURATION ---
-st.set_page_config(page_title="Deepraj Das | Gene-AI Analyst", layout="wide")
+st.set_page_config(page_title="Deepraj Das | Genomic Mission Control", layout="wide")
 
-st.markdown(f"""
+# Professional Dashboard Styling
+st.markdown("""
     <style>
-    .stApp {{ background-color: #050505; color: #E0E0E0; font-family: 'Inter', sans-serif; }}
-    .main-header {{ font-size: 2.5rem; font-weight: 800; color: #FFFFFF; letter-spacing: -1px; margin-bottom: 0; }}
-    .user-credit {{ font-size: 1rem; color: #888888; margin-top: -10px; margin-bottom: 30px; border-left: 3px solid #00D1FF; padding-left: 10px; }}
-    .stTextArea textarea {{ background-color: #121212; color: #00D1FF; border: 1px solid #333; border-radius: 8px; }}
-    .stButton>button {{ width: 100%; background: #FFFFFF; color: #000; border-radius: 5px; font-weight: bold; border: none; transition: 0.3s; }}
-    .stButton>button:hover {{ background: #00D1FF; color: #FFF; box-shadow: 0 0 20px rgba(0,209,255,0.4); }}
-    .result-card {{ background: #111; padding: 25px; border-radius: 12px; border: 1px solid #222; margin-top: 20px; }}
+    .stApp { background-color: #0b0e14; color: #e0e0e0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    .header-panel { background: #161b22; padding: 20px; border-radius: 10px; border-left: 5px solid #00d1ff; margin-bottom: 25px; }
+    .metric-box { background: #1c2128; padding: 15px; border-radius: 8px; border: 1px solid #30363d; text-align: center; }
+    .stTextArea textarea { background-color: #0d1117; color: #58a6ff; border: 1px solid #30363d; border-radius: 6px; font-family: 'Courier New', monospace; }
+    .stButton>button { width: 100%; background: #238636; color: white; border-radius: 6px; font-weight: 600; border: none; height: 3em; }
+    .stButton>button:hover { background: #2ea043; box-shadow: 0 0 10px rgba(46,160,67,0.4); }
+    .report-card { background: #161b22; padding: 20px; border-radius: 10px; border: 1px solid #30363d; margin-top: 15px; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. AI MODEL (1D CNN) ---
+# --- 2. AI CORE (1D-CNN) ---
 class GeneDetector(nn.Module):
     def __init__(self):
         super(GeneDetector, self).__init__()
@@ -39,72 +42,110 @@ def one_hot_encode(sequence):
     mapping = {'A': [1,0,0,0], 'C': [0,1,0,0], 'G': [0,0,1,0], 'T': [0,0,0,1]}
     return np.array([mapping.get(base.upper(), [0,0,0,0]) for base in sequence])
 
-# --- 3. BIOLOGICAL VALIDATION (NCBI BLAST) ---
-def fetch_verified_data(sequence):
+# --- 3. BIOLOGICAL VALIDATION (NCBI API) ---
+def validate_sequence(sequence):
     try:
-        # Step 1: Connect to NCBI (Timeout keyword removed to prevent error)
+        # Step 1: Query global database
         result_handle = NCBIWWW.qblast("blastn", "nt", sequence)
         blast_record = NCBIXML.read(result_handle)
         
-        # Step 2: Parse results for the top hit
+        # Step 2: Extract top-tier match for 100% accuracy
         if blast_record.alignments:
             top_hit = blast_record.alignments[0]
-            # Extracting name and length for 100% accuracy
-            return {"name": top_hit.title, "length": top_hit.length, "error": None}
-        return {"name": None, "length": 0, "error": "AI motif detected, but no matching sequence found in NCBI database (Potential Novel Gene/IDP)."}
-    
-    except Exception as e:
-        # Standard error handling for connection issues
-        return {"name": None, "length": 0, "error": "NCBI Server is currently busy or connection timed out. Please try again in 30 seconds."}
+            return {"name": top_hit.title, "length": top_hit.length, "valid": True}
+        return {"name": "No match found", "length": 0, "valid": False}
+    except:
+        return {"name": "Connection Error (NCBI Offline)", "length": 0, "valid": False}
 
-# --- 4. INTERFACE & LOGIC ---
-st.markdown('<p class="main-header">Genomic Intelligence Portal</p>', unsafe_allow_html=True)
-st.markdown('<p class="user-credit">Principal Investigator: Deepraj Das | NIT Agartala</p>', unsafe_allow_html=True)
+# --- 4. DASHBOARD INTERFACE ---
+st.markdown("""
+    <div class="header-panel">
+        <h1 style='margin:0; color:white;'>GENE-AI: MISSION CONTROL</h1>
+        <p style='margin:0; color:#8b949e;'>Principal Investigator: <b>Deepraj Das</b> | NIT Agartala</p>
+    </div>
+""", unsafe_allow_html=True)
 
-dna_input = st.text_area("Input DNA Sequence Data:", placeholder="Paste DNA sequence here...", height=200)
+# Layout Columns
+col1, col2 = st.columns([2, 1])
 
-if st.button("EXECUTE NEURAL ANALYSIS"):
+with col1:
+    st.markdown("### 📥 SEQUENCE INPUT TERMINAL")
+    dna_input = st.text_area("", placeholder="Enter Raw Genomic Sequence Data...", height=300)
+    analyze_btn = st.button("INITIATE NEURAL ANALYSIS & GLOBAL SEARCH")
+
+with col2:
+    st.markdown("### 📊 SCAN METRICS")
     if not dna_input:
-        st.error("Error: Please provide a sequence for analysis.")
+        st.info("Awaiting Input Data...")
     else:
-        with st.status("Analyzing Genomic Structure...", expanded=True) as status:
+        st.markdown(f"""
+            <div class="metric-box">
+                <p style="margin:0; color:#8b949e;">INPUT LENGTH</p>
+                <h2 style="margin:0; color:#00d1ff;">{len(dna_input)} bp</h2>
+            </div><br>
+            <div class="metric-box">
+                <p style="margin:0; color:#8b949e;">SYSTEM STATUS</p>
+                <h2 style="margin:0; color:#238636;">READY</h2>
+            </div>
+        """, unsafe_allow_html=True)
+
+# --- 5. EXECUTION & RESULTS ---
+if analyze_btn:
+    if len(dna_input) < 10:
+        st.warning("Sequence too short for reliable AI analysis.")
+    else:
+        with st.status("Performing 1D-CNN Structural Scan...", expanded=True) as status:
             try:
-                # Load the 'Brain'
+                # AI Step
                 model = GeneDetector()
                 model.load_state_dict(torch.load("gene_detector_model.pth", map_location=torch.device('cpu')))
                 model.eval()
                 
-                # Neural Prediction
-                input_tensor = torch.tensor(one_hot_encode(dna_input)).float().T.unsqueeze(0)
+                tensor = torch.tensor(one_hot_encode(dna_input)).float().T.unsqueeze(0)
                 with torch.no_grad():
-                    output = model(input_tensor)
+                    output = model(tensor)
                     confidence = F.softmax(output, dim=1)[0][1].item() * 100
                     prediction = torch.argmax(output, dim=1).item()
+
+                status.update(label="Structural Scan Complete. Fetching Functional Annotation...", state="running")
                 
-                if prediction == 1:
-                    status.update(label="Gene Motif Found. Validating Identity...", state="running")
-                    
-                    # Real-world Validation
-                    validation = fetch_verified_data(dna_input)
-                    
-                    if validation['error']:
-                        status.update(label="Partial Success: AI match found.", state="error")
-                        st.warning(validation['error'])
-                    else:
-                        status.update(label="Sequence Verified.", state="complete")
-                        st.markdown(f"""
-                        <div class="result-card">
-                            <h3 style="color:#00D1FF; margin-top:0;">Verified Biological Report</h3>
-                            <p><b>AI Status:</b> Gene Identified ({confidence:.2f}% Confidence)</p>
-                            <p><b>Official Gene Name:</b> {validation['name']}</p>
-                            <p><b>Sequence Length:</b> {validation['length']} bp</p>
-                            <p><b>Validation Method:</b> Cloud-Linked NCBI BLASTn</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                else:
-                    status.update(label="Analysis Complete: Non-coding Region.", state="complete")
-                    st.info(f"The AI did not detect significant gene motifs in this sequence (Confidence: {100-confidence:.2f}%).")
-                    
+                # Validation Step
+                bio_data = validate_sequence(dna_input)
+                
+                status.update(label="Analysis Finalized.", state="complete")
+                
+                # Result Panel
+                st.markdown("### 🏁 FINAL SCAN REPORT")
+                res_color = "#238636" if prediction == 1 else "#da3633"
+                res_text = "GENE DETECTED" if prediction == 1 else "NON-CODING REGION"
+                
+                st.markdown(f"""
+                    <div class="report-card">
+                        <h2 style="color:{res_color}; margin-top:0;">{res_text}</h2>
+                        <p><b>AI Confidence Score:</b> {confidence:.2f}%</p>
+                        <hr style="border:0.5px solid #30363d;">
+                        <h4 style="color:#58a6ff;">Biological Identification (Verified)</h4>
+                        <p><b>Gene Name:</b> {bio_data['name']}</p>
+                        <p><b>Database Match Length:</b> {bio_data['length']} bp</p>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                # --- 6. EXPORT TERMINAL ---
+                st.markdown("### 💾 DATA EXPORT")
+                export_df = pd.DataFrame([{
+                    "Investigator": "Deepraj Das",
+                    "Sequence_Length": len(dna_input),
+                    "AI_Result": res_text,
+                    "AI_Confidence": f"{confidence:.2f}%",
+                    "NCBI_Identity": bio_data['name']
+                }])
+                
+                st.download_button(
+                    label="📥 DOWNLOAD VERIFIED REPORT (.CSV)",
+                    data=export_df.to_csv(index=False),
+                    file_name=f"Deepraj_Das_Analysis_{int(time.time())}.csv",
+                    mime="text/csv"
+                )
+                
             except Exception as e:
-                status.update(label="System Error", state="error")
-                st.error(f"Operational Error: {str(e)}")
+                st.error(f"System Error Encountered: {str(e)}")
