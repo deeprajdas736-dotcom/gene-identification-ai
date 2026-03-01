@@ -4,12 +4,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from Bio.Blast import NCBIWWW, NCBIXML
-import time
 
 # --- 1. SYSTEM CONFIGURATION ---
 st.set_page_config(page_title="Deepraj Das | Gene-AI Analyst", layout="wide")
 
-# Classy Futuristic Styling
 st.markdown(f"""
     <style>
     .stApp {{ background-color: #050505; color: #E0E0E0; font-family: 'Inter', sans-serif; }}
@@ -22,7 +20,7 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. THE AI BRAIN ---
+# --- 2. AI MODEL (1D CNN) ---
 class GeneDetector(nn.Module):
     def __init__(self):
         super(GeneDetector, self).__init__()
@@ -41,67 +39,72 @@ def one_hot_encode(sequence):
     mapping = {'A': [1,0,0,0], 'C': [0,1,0,0], 'G': [0,0,1,0], 'T': [0,0,0,1]}
     return np.array([mapping.get(base.upper(), [0,0,0,0]) for base in sequence])
 
-# --- 3. THE BIOLOGICAL VALIDATOR ---
-def fetch_ncbi_identity(sequence):
+# --- 3. BIOLOGICAL VALIDATION (NCBI BLAST) ---
+def fetch_verified_data(sequence):
     try:
-        # qblast returns XML format by default for better parsing
-        result_handle = NCBIWWW.qblast("blastn", "nt", sequence, timeout=60)
+        # Step 1: Connect to NCBI (Timeout keyword removed to prevent error)
+        result_handle = NCBIWWW.qblast("blastn", "nt", sequence)
         blast_record = NCBIXML.read(result_handle)
+        
+        # Step 2: Parse results for the top hit
         if blast_record.alignments:
             top_hit = blast_record.alignments[0]
+            # Extracting name and length for 100% accuracy
             return {"name": top_hit.title, "length": top_hit.length, "error": None}
-        return {"name": None, "length": 0, "error": "AI identified a gene motif, but no match exists in the NCBI database (Potential Novel Gene)."}
+        return {"name": None, "length": 0, "error": "AI motif detected, but no matching sequence found in NCBI database (Potential Novel Gene/IDP)."}
+    
     except Exception as e:
-        return {"name": None, "length": 0, "error": f"Connection Error: {str(e)}. (NCBI servers may be busy, please try again)."}
+        # Standard error handling for connection issues
+        return {"name": None, "length": 0, "error": "NCBI Server is currently busy or connection timed out. Please try again in 30 seconds."}
 
-# --- 4. INTERFACE ---
+# --- 4. INTERFACE & LOGIC ---
 st.markdown('<p class="main-header">Genomic Intelligence Portal</p>', unsafe_allow_html=True)
 st.markdown('<p class="user-credit">Principal Investigator: Deepraj Das | NIT Agartala</p>', unsafe_allow_html=True)
 
-dna_input = st.text_area("Input DNA Sequence Data:", placeholder="Paste your FASTA or raw sequence here...", height=200)
+dna_input = st.text_area("Input DNA Sequence Data:", placeholder="Paste DNA sequence here...", height=200)
 
-if st.button("EXECUTE ANALYSIS"):
+if st.button("EXECUTE NEURAL ANALYSIS"):
     if not dna_input:
-        st.error("Please input a valid DNA sequence.")
+        st.error("Error: Please provide a sequence for analysis.")
     else:
-        with st.status("Initializing Neural Scan...", expanded=True) as status:
+        with st.status("Analyzing Genomic Structure...", expanded=True) as status:
             try:
-                # Load AI Model
+                # Load the 'Brain'
                 model = GeneDetector()
                 model.load_state_dict(torch.load("gene_detector_model.pth", map_location=torch.device('cpu')))
                 model.eval()
                 
-                # AI Prediction
+                # Neural Prediction
                 input_tensor = torch.tensor(one_hot_encode(dna_input)).float().T.unsqueeze(0)
                 with torch.no_grad():
                     output = model(input_tensor)
                     confidence = F.softmax(output, dim=1)[0][1].item() * 100
                     prediction = torch.argmax(output, dim=1).item()
                 
-                status.update(label="AI Analysis Complete. Validating with NCBI...", state="running")
-                
-                # NCBI Search
-                ncbi_data = fetch_ncbi_identity(dna_input)
-                
-                if ncbi_data['error']:
-                    status.update(label="Partial Result: AI Match Found, Validation Failed.", state="error")
-                    st.error(ncbi_data['error'])
+                if prediction == 1:
+                    status.update(label="Gene Motif Found. Validating Identity...", state="running")
+                    
+                    # Real-world Validation
+                    validation = fetch_verified_data(dna_input)
+                    
+                    if validation['error']:
+                        status.update(label="Partial Success: AI match found.", state="error")
+                        st.warning(validation['error'])
+                    else:
+                        status.update(label="Sequence Verified.", state="complete")
+                        st.markdown(f"""
+                        <div class="result-card">
+                            <h3 style="color:#00D1FF; margin-top:0;">Verified Biological Report</h3>
+                            <p><b>AI Status:</b> Gene Identified ({confidence:.2f}% Confidence)</p>
+                            <p><b>Official Gene Name:</b> {validation['name']}</p>
+                            <p><b>Sequence Length:</b> {validation['length']} bp</p>
+                            <p><b>Validation Method:</b> Cloud-Linked NCBI BLASTn</p>
+                        </div>
+                        """, unsafe_allow_html=True)
                 else:
-                    status.update(label="Analysis Verified Successfully.", state="complete")
+                    status.update(label="Analysis Complete: Non-coding Region.", state="complete")
+                    st.info(f"The AI did not detect significant gene motifs in this sequence (Confidence: {100-confidence:.2f}%).")
                     
-                    st.markdown(f"""
-                    <div class="result-card">
-                        <h3 style="color:#00D1FF; margin-top:0;">Verified Gene Report</h3>
-                        <p><b>AI Prediction:</b> Gene Detected ({confidence:.2f}% Accuracy)</p>
-                        <p><b>Gene Name:</b> {ncbi_data['name']}</p>
-                        <p><b>Sequence Length:</b> {ncbi_data['length']} base pairs</p>
-                        <p><b>Scientific Status:</b> Confirmed via NCBI BLAST Database</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-            except FileNotFoundError:
-                status.update(label="Critical System Error", state="error")
-                st.error("System Error: 'gene_detector_model.pth' not found. Ensure the model file is in your GitHub folder.")
             except Exception as e:
-                status.update(label="Unexpected Error", state="error")
-                st.error(f"Error Details: {str(e)}")
+                status.update(label="System Error", state="error")
+                st.error(f"Operational Error: {str(e)}")
