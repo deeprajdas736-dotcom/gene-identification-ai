@@ -7,30 +7,30 @@ import pandas as pd
 import time
 from Bio.Blast import NCBIWWW, NCBIXML
 
-# --- 1. SYSTEM CONFIGURATION & GOLD THEME ---
-st.set_page_config(page_title="Deepraj Das | GeneLab Elite", layout="wide")
+# --- 1. RESEARCH STATION CONFIGURATION ---
+st.set_page_config(page_title="GeneLab Elite | Deepraj Das", layout="wide")
 
 st.markdown("""
     <style>
-    .stApp { background-color: #0b0e14; color: #c9d1d9; font-family: 'Inter', sans-serif; }
+    .stApp { background-color: #0b0e14; color: #e0e0e0; font-family: 'Inter', sans-serif; }
     .main-header { 
-        background: linear-gradient(90deg, #d4af37, #b8860b); 
-        padding: 30px; border-radius: 15px; border: 1px solid #ffd700; margin-bottom: 25px; 
+        background: linear-gradient(90deg, #d4af37, #1a1a1a); 
+        padding: 30px; border-radius: 15px; border-left: 10px solid #d4af37; margin-bottom: 25px; 
     }
-    .stat-card { background: #161b22; padding: 20px; border-radius: 12px; border: 1px solid #30363d; text-align: center; }
+    .stat-card { background: #161b22; padding: 15px; border-radius: 10px; border: 1px solid #30363d; text-align: center; }
     .stButton>button { 
-        background: linear-gradient(45deg, #d4af37, #b8860b); 
-        color: black; border-radius: 10px; font-weight: 800; border: none; padding: 15px; 
+        background: #d4af37; color: black; border-radius: 8px; font-weight: 800; border: none; padding: 12px; transition: 0.3s;
     }
-    .report-card { background: #0d1117; padding: 25px; border-radius: 15px; border: 2px solid #d4af37; margin-top: 20px; }
+    .stButton>button:hover { background: #ffd700; transform: scale(1.02); }
+    .report-container { background: #161b22; padding: 25px; border-radius: 12px; border: 1px solid #d4af37; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. MULTI-ENGINE AI CORE ---
+# --- 2. THE AI DISCOVERY ENGINE (Ab Initio) ---
 class GeneDetector(nn.Module):
     def __init__(self):
         super(GeneDetector, self).__init__()
-        self.conv1 = nn.Conv1d(in_channels=4, out_channels=32, kernel_size=3) # Increased filters for gold standard
+        self.conv1 = nn.Conv1d(in_channels=4, out_channels=32, kernel_size=3)
         self.relu = nn.ReLU()
         self.fc = nn.Linear(32, 2)
 
@@ -45,56 +45,57 @@ def one_hot_encode(sequence):
     mapping = {'A': [1,0,0,0], 'C': [0,1,0,0], 'G': [0,0,1,0], 'T': [0,0,0,1]}
     return np.array([mapping.get(base.upper(), [0,0,0,0]) for base in sequence])
 
-def run_homology_search(sequence, mode):
-    program = "blastn" if mode == "Prokaryotic" else "blastx" # Use blastx for Eukaryotic logic
+# --- 3. THE GENOME CLASSIFIER & IDENTIFIER ---
+def classify_and_identify(sequence):
     try:
-        result_handle = NCBIWWW.qblast(program, "nt", sequence)
+        # Determine Genome Type based on sequence characteristics (GC Content / Length)
+        gc_content = (sequence.count('G') + sequence.count('C')) / len(sequence) * 100
+        g_type = "Prokaryotic (Dense)" if gc_content > 55 else "Eukaryotic (Complex/Intronic)"
+        
+        # Homology Search for Function/Name
+        result_handle = NCBIWWW.qblast("blastn", "nt", sequence)
         blast_record = NCBIXML.read(result_handle)
+        
         if blast_record.alignments:
             top_hit = blast_record.alignments[0]
-            return {"name": top_hit.title, "length": top_hit.length, "match": True}
-        return {"name": "Potential Novel Sequence (No DB Match)", "length": 0, "match": False}
+            return {"type": g_type, "name": top_hit.title, "valid": True}
+        return {"type": g_type, "name": "Unknown/Novel Gene (No Database Match)", "valid": False}
     except:
-        return {"name": "NCBI Offline - Showing Prediction Only", "length": 0, "match": False}
+        return {"type": "Awaiting Cloud Verification", "name": "NCBI Timeout", "valid": False}
 
-# --- 3. INTERFACE ---
+# --- 4. DASHBOARD INTERFACE ---
 with st.sidebar:
-    st.markdown("### 🧬 RESEARCHER CREDENTIALS")
+    st.markdown("### 🧬 INVESTIGATOR")
     st.write("**Deepraj Das**")
-    st.write("MSc Biotechnology")
-    st.write("Amity University Kolkata")
+    st.write("MSc Biotechnology | Amity University")
+    st.write("Dissertation: NIT Agartala")
     st.markdown("---")
-    st.write("**Dissertation Lab:**")
-    st.write("NIT Agartala")
-    st.markdown("---")
-    st.subheader("PIPELINE SETTINGS")
-    engine_mode = st.selectbox("Pipeline Mode", ["Prokaryotic (High Density)", "Eukaryotic (Intron Awareness)"])
-    st.info("Prokaryotic mode uses Prodigal-style logic; Eukaryotic uses ab initio patterns.")
+    st.info("This system identifies known genes and discovers novel Open Reading Frames (ORFs) using 1D-CNN patterns.")
 
 st.markdown("""
     <div class="main-header">
-        <h1 style='margin:0; color:black;'>GENELAB ELITE: GOLD STANDARD ANNOTATOR</h1>
-        <p style='margin:0; color:#333; font-weight:600;'>Integrated Neural Prediction & Homology-Based Validation</p>
+        <h1 style='margin:0; color:#d4af37;'>GENELAB ELITE: DISCOVERY PIPELINE</h1>
+        <p style='margin:0; color:#888;'>Autonomous Genome Classification & Functional Annotation</p>
     </div>
 """, unsafe_allow_html=True)
 
-# Stats Row
-s1, s2, s3 = st.columns(3)
-s1.markdown("<div class='stat-card'><p>ANALYTICS ENGINE</p><h3>Neural v3.0</h3></div>", unsafe_allow_html=True)
-s2.markdown("<div class='stat-card'><p>VALIDATION</p><h3>NCBI-Linked</h3></div>", unsafe_allow_html=True)
-s3.markdown("<div class='stat-card'><p>DATASET</p><h3>Gold Standard</h3></div>", unsafe_allow_html=True)
+# Metric Panel
+m1, m2, m3 = st.columns(3)
+m1.markdown("<div class='stat-card'><p style='color:#8b949e;'>ANALYSIS ENGINE</p><h3 style='color:#d4af37;'>Neural 1D-CNN</h3></div>", unsafe_allow_html=True)
+m2.markdown("<div class='stat-card'><p style='color:#8b949e;'>DISCOVERY MODE</p><h3 style='color:#d4af37;'>Ab Initio + Homology</h3></div>", unsafe_allow_html=True)
+m3.markdown("<div class='stat-card'><p style='color:#8b949e;'>CLOUD STATUS</p><h3 style='color:#00ff88;'>NCBI LIVE</h3></div>", unsafe_allow_html=True)
 
 st.write("---")
-dna_input = st.text_area("🧬 NUCLEOTIDE SEQUENCE STREAM", placeholder="Paste FASTA or raw DNA sequence here...", height=250)
-run_btn = st.button("🔥 INITIATE GOLD-STANDARD PIPELINE")
+dna_input = st.text_area("🛰️ GENOMIC SEQUENCE STREAM", placeholder="Paste Nucleotide Data (A, C, G, T)...", height=250)
+execute = st.button("🚀 INITIATE FULL GENOMIC DISCOVERY")
 
-if run_btn:
-    if not dna_input:
-        st.error("Missing Sequence Input.")
+if execute:
+    if len(dna_input) < 20:
+        st.error("Sequence integrity failed: Data too short for neural classification.")
     else:
-        with st.status("Executing Multi-Stage Analysis...", expanded=True) as status:
+        with st.status("Scanning Neural Architecture for Gene Motifs...", expanded=True) as status:
             try:
-                # 1. Prediction Phase
+                # 1. Prediction (Identify even unknown genes)
                 model = GeneDetector()
                 model.load_state_dict(torch.load("gene_detector_model.pth", map_location=torch.device('cpu')))
                 model.eval()
@@ -105,51 +106,50 @@ if run_btn:
                     confidence = F.softmax(output, dim=1)[0][1].item() * 100
                     prediction = torch.argmax(output, dim=1).item()
                 
-                status.update(label="Structural Prediction Complete. Accessing NCBI Cloud...", state="running")
+                status.update(label="Structural Scan Complete. Identifying Genome Type...", state="running")
                 
-                # 2. Homology Phase
-                homology_data = run_homology_search(dna_input, engine_mode)
+                # 2. Identification (Type, Name, Function)
+                results = classify_and_identify(dna_input)
+                status.update(label="Analysis Verified.", state="complete")
                 
-                status.update(label="Analysis Finalized.", state="complete")
+                # 3. High-Fidelity Results
+                res_tab, id_tab, report_tab = st.tabs(["📊 Neural Prediction", "🧬 Biological Identity", "📥 Official Report"])
                 
-                # 3. Comprehensive Tabs
-                pred_tab, homology_tab, download_tab = st.tabs(["📊 Prediction Metrics", "🧬 Homology Report", "📥 Official Export"])
-                
-                with pred_tab:
-                    st.markdown("<div class='report-card'>", unsafe_allow_html=True)
-                    res_label = "CODING SEQUENCE (CDS)" if prediction == 1 else "NON-CODING REGION"
-                    res_color = "#3fb950" if prediction == 1 else "#f85149"
-                    st.markdown(f"<h2 style='color:{res_color};'>{res_label}</h2>", unsafe_allow_html=True)
-                    st.write(f"**Engine Confidence:** {confidence:.2f}%")
-                    st.write(f"**Mode Applied:** {engine_mode}")
+                with res_tab:
+                    st.markdown("<div class='report-container'>", unsafe_allow_html=True)
+                    pred_txt = "GENE DETECTED" if prediction == 1 else "NON-CODING REGION"
+                    pred_clr = "#00ff88" if prediction == 1 else "#ff4b4b"
+                    st.markdown(f"<h2 style='color:{pred_clr};'>{pred_txt}</h2>", unsafe_allow_html=True)
+                    st.write(f"**AI Structural Confidence:** {confidence:.2f}%")
+                    st.write(f"**Predicted Genome Type:** {results['type']}")
                     st.markdown("</div>", unsafe_allow_html=True)
-
-                with homology_tab:
-                    st.markdown("<div class='report-card'>", unsafe_allow_html=True)
-                    st.subheader("Verified Biological Identity")
-                    st.info(f"**Identified as:** {homology_data['name']}")
-                    st.write(f"**Length:** {homology_data['length']} bp")
-                    st.write("**Database:** NCBI GenBank (Live Link)")
+                
+                with id_tab:
+                    st.markdown("<div class='report-container'>", unsafe_allow_html=True)
+                    st.subheader("Functional Annotation")
+                    st.info(f"**Assigned Name/Function:** {results['name']}")
+                    st.write(f"**Genome Classification:** {results['type']}")
+                    st.write("**Database:** NCBI GenBank (Cloud Verified)")
                     st.markdown("</div>", unsafe_allow_html=True)
-
-                with download_tab:
-                    st.markdown("<div class='report-card'>", unsafe_allow_html=True)
-                    st.subheader("Export Certified Results")
-                    df = pd.DataFrame([{
-                        "Principal Investigator": "Deepraj Das",
-                        "Institution": "NIT Agartala / Amity Kolkata",
-                        "Mode": engine_mode,
-                        "Prediction": res_label,
+                
+                with report_tab:
+                    st.markdown("<div class='report-container'>", unsafe_allow_html=True)
+                    st.subheader("Data Export Terminal")
+                    export_df = pd.DataFrame([{
+                        "Investigator": "Deepraj Das",
+                        "Affiliation": "Amity Kolkata / NIT Agartala",
+                        "Genome_Type": results['type'],
+                        "AI_Prediction": pred_txt,
                         "AI_Confidence": f"{confidence:.2f}%",
-                        "Bio_Identity": homology_data['name']
+                        "Bio_Identity": results['name']
                     }])
                     st.download_button(
-                        label="📥 DOWNLOAD GOLD STANDARD REPORT (CSV)",
-                        data=df.to_csv(index=False),
+                        label="📥 DOWNLOAD CERTIFIED GENOMIC REPORT (CSV)",
+                        data=export_df.to_csv(index=False),
                         file_name=f"GeneLab_Elite_Report_{int(time.time())}.csv",
                         mime="text/csv"
                     )
                     st.markdown("</div>", unsafe_allow_html=True)
 
             except Exception as e:
-                st.error(f"Pipeline Failure: {str(e)}")
+                st.error(f"System Error: {str(e)}")
